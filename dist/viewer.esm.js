@@ -2,10 +2,10 @@
  * Viewer.js v0.10.0
  * https://github.com/fengyuanchen/viewerjs
  *
- * Copyright (c) 2015-2017 Chen Fengyuan
+ * Copyright (c) 2015-2018 Chen Fengyuan
  * Released under the MIT license
  *
- * Date: 2017-11-05T04:38:31.466Z
+ * Date: 2018-12-14T18:40:25.493Z
  */
 
 var DEFAULTS = {
@@ -130,6 +130,7 @@ var EVENT_CLICK = 'click';
 var EVENT_DRAG_START = 'dragstart';
 var EVENT_KEY_DOWN = 'keydown';
 var EVENT_LOAD = 'load';
+var EVENT_LOADEDMETADATA = 'loadedmetadata';
 var EVENT_POINTER_DOWN = WINDOW.PointerEvent ? 'pointerdown' : 'touchstart mousedown';
 var EVENT_POINTER_MOVE = WINDOW.PointerEvent ? 'pointermove' : 'mousemove touchmove';
 var EVENT_POINTER_UP = WINDOW.PointerEvent ? 'pointerup pointercancel' : 'touchend touchcancel mouseup';
@@ -678,6 +679,12 @@ function getImageNaturalSizes(image, callback) {
   // Modern browsers (except Safari)
   if (image.naturalWidth && !IS_SAFARI_OR_UIWEBVIEW) {
     callback(image.naturalWidth, image.naturalHeight);
+    return;
+  }
+
+  // If the element is a video
+  if (image.videoWidth) {
+    callback(image.videoWidth, image.videoHeight);
     return;
   }
 
@@ -1369,6 +1376,9 @@ var handlers = {
         addListener(image, EVENT_LOAD, proxy(_this2.loadImage, _this2), {
           once: true
         });
+        addListener(image, EVENT_LOADEDMETADATA, proxy(_this2.loadImage, _this2), {
+          once: true
+        });
         dispatchEvent(image, EVENT_LOAD);
       });
     }
@@ -1544,10 +1554,23 @@ var methods = {
     var img = item.querySelector('img');
     var url = getData(img, 'originalUrl');
     var alt = img.getAttribute('alt');
-    var image = document.createElement('img');
+    var image = null;
 
-    image.src = url;
-    image.alt = alt;
+    if (url.match(/\.mp4$/)) {
+      image = document.createElement('video');
+      image.controls = true;
+      image.autoplay = true;
+
+      var videoSource = document.createElement('source');
+      videoSource.src = url;
+      videoSource.type = 'video/mp4';
+      image.appendChild(videoSource);
+    } else {
+      image = document.createElement('img');
+
+      image.src = url;
+      image.alt = alt;
+    }
 
     if (dispatchEvent(element, EVENT_VIEW, {
       originalImage: this.images[index],
@@ -1590,6 +1613,9 @@ var methods = {
       this.load();
     } else {
       addListener(image, EVENT_LOAD, proxy(this.load, this), {
+        once: true
+      });
+      addListener(image, EVENT_LOADEDMETADATA, proxy(this.load, this), {
         once: true
       });
 
